@@ -1,7 +1,7 @@
 {
   "name": "@nihaopaul/paperclip-litellm-adapter",
-  "version": "0.1.0",
-  "description": "LiteLLM gateway adapter for Paperclip. Auto-discovers models from your LiteLLM instance via /models and /model/info.",
+  "version": "0.2.0",
+  "description": "Lite-Harness SDK adapter for Paperclip: run Claude Code / Codex / Pi through a LiteLLM gateway with model discovery.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -9,11 +9,16 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./ui-parser": "./vendor/ui-parser.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "vendor"
   ],
+  "paperclip": {
+    "adapterUiParser": "1"
+  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
@@ -22,9 +27,13 @@
   "keywords": [
     "paperclip",
     "litellm",
+    "lite-harness",
     "llm",
     "gateway",
     "adapter",
+    "harness",
+    "claude",
+    "codex",
     "openai-compatible",
     "anthropic-compatible"
   ],
@@ -39,7 +48,14 @@
   "engines": {
     "node": ">=20"
   },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.0",
+    "@earendil-works/pi-agent-core": "^0.78.0",
+    "@openai/codex-sdk": "^0.136.0",
+    "@paperclipai/adapter-utils": "^2026.1023.0"
+  },
   "devDependencies": {
+    "@types/node": "^26.6.5",
     "typescript": "^5.6.0",
     "vitest": "^3.0.0"
   }
