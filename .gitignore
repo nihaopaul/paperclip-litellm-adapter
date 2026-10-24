@@ -147,3 +147,6 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Local-only setup instructions (per-machine, never committed)
+CLAUDE.md
