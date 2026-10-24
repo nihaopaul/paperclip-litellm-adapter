@@ -14,7 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Required by npm to sign a provenance attestation for the published tarball.
+      # OIDC token for npm trusted publishing. This replaces the NPM_TOKEN
+      # secret entirely — no access token is stored in the repo.
       id-token: write
     steps:
       - name: Checkout
@@ -25,11 +26,12 @@ jobs:
         with:
           version: 9.15.4
 
+      # Deliberately no `registry-url`: setup-node would write a placeholder
+      # _authToken into .npmrc that blocks the OIDC token exchange.
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
           cache: pnpm
 
       - name: Install dependencies
@@ -41,8 +43,8 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Upgrade npm (trusted publishing needs npm >= 11.5)
+        run: npm install -g npm@latest
+
       - name: Publish
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: "true"
+        run: npm publish

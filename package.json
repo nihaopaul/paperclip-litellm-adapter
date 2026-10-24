@@ -29,6 +29,10 @@
     "anthropic-compatible"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nihaopaul/paperclip-litellm-adapter.git"
+  },
   "engines": {
     "node": ">=20"
   },
