@@ -1,5 +1,5 @@
 {
-  "name": "paperclip-litellm-adapter",
+  "name": "@nihaopaul/paperclip-litellm-adapter",
   "version": "0.1.0",
   "description": "LiteLLM gateway adapter for Paperclip. Auto-discovers models from your LiteLLM instance via /models and /model/info.",
   "type": "module",
@@ -32,6 +32,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/nihaopaul/paperclip-litellm-adapter.git"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=20"

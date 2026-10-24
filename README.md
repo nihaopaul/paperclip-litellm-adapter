@@ -1,4 +1,4 @@
-# paperclip-litellm-adapter
+# @nihaopaul/paperclip-litellm-adapter
 
 A LiteLLM gateway adapter for [Paperclip](https://github.com/paperclipai/paperclip). It lets Paperclip treat any LiteLLM proxy as a first-class model provider, auto-discovering the available models from the LiteLLM instance instead of asking the user to type model IDs.
 
@@ -18,13 +18,13 @@ A LiteLLM gateway adapter for [Paperclip](https://github.com/paperclipai/papercl
 ## Install
 
 ```sh
-pnpm add paperclip-litellm-adapter
+pnpm add @nihaopaul/paperclip-litellm-adapter
 ```
 
 ## Usage (client)
 
 ```ts
-import { LiteLLMClient, litellmAdapter } from "paperclip-litellm-adapter";
+import { LiteLLMClient, litellmAdapter } from "@nihaopaul/paperclip-litellm-adapter";
 
 const client = new LiteLLMClient({
   baseUrl: "https://litellm.example.com", // or http://127.0.0.1:14000 for a local forward
