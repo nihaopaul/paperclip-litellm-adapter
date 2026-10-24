@@ -1,78 +1,88 @@
 # @nihaopaul/paperclip-litellm-adapter
 
-A LiteLLM gateway adapter for [Paperclip](https://github.com/paperclipai/paperclip). It lets Paperclip treat any LiteLLM proxy as a first-class model provider, auto-discovering the available models from the LiteLLM instance instead of asking the user to type model IDs.
+A [Paperclip](https://github.com/paperclipai/paperclip) **external adapter plugin** that runs coding-agent harnesses through a [LiteLLM](https://www.litellm.ai/) gateway, using the [Lite-Harness SDK](https://github.com/LiteLLM-Labs/lite-harness) (vendored — the SDK is not published to npm yet).
 
-## What it does
+The user supplies a gateway URL + API key + model; the adapter spawns the Lite-Harness server, which drives the underlying harness with model calls routed through LiteLLM.
 
-- **Discovers models** from your LiteLLM via `GET /models` and `GET /model/info`.
-- **Supports all three gateway protocols** Paperclip understands:
+## Harnesses
 
-| Protocol | LiteLLM API surface | Paperclip harness |
+| `harness` | what it drives | notes |
 |---|---|---|
-| `chat` | OpenAI Chat Completions (`/v1/chat/completions`) | `opencode_local` |
-| `responses` | OpenAI Responses (`/v1/responses`) | `codex_local` |
-| `messages` | Anthropic Messages (`/v1/messages`) | `claude_local` |
+| `claude` | Claude Code (Claude Agent SDK) | reports usage + cost |
+| `codex` | Codex (Codex SDK) | needs the Codex CLI on `PATH` |
+| `pi` | Pi AI (in-process, OpenAI-compatible) | no external CLI |
 
-- Maps to Paperclip's `gateway` routing (`kind: "gateway"`, `auth: "bearer"`).
+## Install (as a Paperclip plugin)
 
-## Install
+Install the package into Paperclip's adapter plugin store:
 
 ```sh
-pnpm add @nihaopaul/paperclip-litellm-adapter
+mkdir -p ~/.paperclip/adapter-plugins/node_modules
+cd ~/.paperclip/adapter-plugins/node_modules
+npm install @nihaopaul/paperclip-litellm-adapter
 ```
 
-## Usage (client)
+Then register it in `~/.paperclip/adapter-plugins.json`:
+
+```json
+[
+  {
+    "packageName": "@nihaopaul/paperclip-litellm-adapter",
+    "type": "lite_harness",
+    "version": "0.2.0",
+    "installedAt": "2026-10-25T00:00:00.000Z"
+  }
+]
+```
+
+On restart, Paperclip's plugin loader calls `createServerAdapter()` from the package's main entry and registers a `lite_harness` harness.
+
+## Configuration
+
+The harness exposes these `adapterConfig` fields:
+
+| field | required | description |
+|---|---|---|
+| `gatewayBaseUrl` | yes | LiteLLM gateway URL, e.g. `http://192.168.2.47:14000` |
+| `apiKey` | yes | LiteLLM virtual key |
+| `model` | yes | LiteLLM model id, e.g. `deepseek-flash` |
+| `harness` | yes | `claude` (default), `codex`, or `pi` |
+| `cwd` | no | working directory |
+| `timeoutSec` | no | run timeout in seconds (default 600) |
+
+## How it works
+
+`execute()` spawns the vendored Lite-Harness server:
+
+```sh
+node vendor/lite-harness-server/server.mjs \
+  --input-format stream-json --output-format stream-json \
+  --agent <harness> --model <model>
+```
+
+with `LITELLM_API_BASE` / `LITELLM_API_KEY` set from the config. The server speaks the Claude Agent SDK **stream-json** protocol (NDJSON), which is streamed through Paperclip's `onLog` and parsed into `AdapterExecutionResult` (usage, cost, model). The `./ui-parser` export parses the same NDJSON into transcript entries.
+
+## API
+
+The root export also provides the model-discovery client and gateway routing metadata:
 
 ```ts
-import { LiteLLMClient, litellmAdapter } from "@nihaopaul/paperclip-litellm-adapter";
+import { createServerAdapter, LiteLLMClient, litellmAdapter } from "@nihaopaul/paperclip-litellm-adapter";
 
-const client = new LiteLLMClient({
-  baseUrl: "https://litellm.example.com", // or http://127.0.0.1:14000 for a local forward
-  apiKey: "sk-…",                        // your LiteLLM virtual key
-});
-
-const models = await client.listModels();     // [{ id, mode, max_input_tokens, … }]
-const info   = await client.modelInfo();      // [{ model_name, litellm_params: { model: "gemini/gemini-3.1-pro", … } }]
-const merged = await client.discover();       // summaries joined with their provider model
-
-console.log(litellmAdapter.type);             // "litellm_gateway"
+const adapter = createServerAdapter();          // Paperclip plugin entry point
+const client = new LiteLLMClient({ baseUrl: "…", apiKey: "…" });
+const models = await client.discover();          // summaries joined with provider model
 ```
 
-## Adapter definition
+## Status
 
-`litellmAdapter` exports the stable metadata and routing shape:
-
-```ts
-{
-  type: "litellm_gateway",
-  label: "LiteLLM",
-  recommended: true,
-  routingKind: "gateway",
-  auth: "bearer",
-  protocols: ["chat", "responses", "messages"],
-  protocolHarnesses: { chat: "opencode_local", responses: "codex_local", messages: "claude_local" },
-}
-```
-
-## Paperclip integration
-
-This package owns the self-contained parts (the client + the definition). Wiring the "LiteLLM" tile into Paperclip's onboarding list is a thin core PR that:
-
-1. registers `litellm_gateway` in `ui/src/adapters/` (via `registerUIAdapter` + `adapterDisplayMap`),
-2. adds a setup form (base URL + key → live model picker from `discover()`),
-3. saves the connection with `routing: { kind: "gateway", protocol, baseUrl, auth: "bearer", models }`.
-
-See Paperclip's `doc/connections/CONNECTOR-PLAYBOOK.md` for the authoring runbook.
-
-## Security note
-
-The base URL is fully user-supplied — nothing here hard-codes loopback. Paperclip core, however, only accepts **plain HTTP for loopback** addresses and requires **HTTPS** otherwise (to avoid sending your key in cleartext). This package does not bypass that; prefer `https://` for anything non-local.
+Pre-1.0. See the open [issues](https://github.com/nihaopaul/paperclip-litellm-adapter/issues) for known limitations (model auto-discovery in the UI, codex CLI availability, wake-payload prompt rendering, remote sandboxes).
 
 ## Development
 
 ```sh
-pnpm install
-pnpm typecheck
-pnpm test
-pnpm build
+corepack pnpm@9.15.4 install
+corepack pnpm@9.15.4 typecheck
+corepack pnpm@9.15.4 test
+corepack pnpm@9.15.4 build
 ```
