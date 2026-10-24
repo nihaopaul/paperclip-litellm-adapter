@@ -12,6 +12,7 @@ jobs:
   publish:
     name: Build & publish
     runs-on: ubuntu-latest
+    environment: publish
     permissions:
       contents: read
       # OIDC token for npm trusted publishing. This replaces the NPM_TOKEN
