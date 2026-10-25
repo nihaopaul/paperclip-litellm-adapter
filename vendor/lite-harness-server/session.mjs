@@ -58,6 +58,12 @@ export class Session {
     }
   }
 
+  // Abort the in-flight provider turn. Called on a host cancellation signal so
+  // the SDK query settles cleanly instead of dying mid-generation.
+  interrupt() {
+    this.runtime.interrupt?.();
+  }
+
   async *runTurn({ prompt, content }) {
     this.turns += 1;
     const startedAt = Date.now();

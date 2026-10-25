@@ -28,3 +28,13 @@ const session = new Session({
   stderr: process.stderr,
 });
 new StreamJsonServer({ session }).start();
+
+// On host cancellation the process is signaled. Abort the in-flight turn so the
+// SDK query settles cleanly rather than leaving an ambiguous tool mid-flight,
+// then exit. The adapter reports this as a clean interruption.
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  process.on(signal, () => {
+    session.interrupt();
+    setTimeout(() => process.exit(0), 250);
+  });
+}

@@ -303,6 +303,25 @@ export function createServerAdapter(): ServerAdapterModule {
         };
       }
 
+      // A cancelled run signals the child process. Our harness keeps no durable
+      // session or checkpoint, so a clean interruption leaves nothing to
+      // reconcile — report it so the host skips the legacy-execution
+      // reconciliation hold (executionRecovery.kind === "interrupted").
+      if (ctx.signal?.aborted || proc.signal) {
+        return {
+          exitCode: proc.exitCode,
+          signal: proc.signal,
+          timedOut: false,
+          errorMessage: "Interrupted by host.",
+          executionRecovery: {
+            kind: "interrupted",
+            providerStopped: true,
+            sessionPreserved: true,
+            actionOutcomes: "settled",
+          },
+        };
+      }
+
       const result = parseResultLine(proc.stdout ?? "");
       if (result) {
         const usage = result.usage && typeof result.usage === "object" ? result.usage : {};
