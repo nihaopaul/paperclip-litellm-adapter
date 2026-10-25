@@ -84,29 +84,46 @@ export function createServerAdapter(): ServerAdapterModule {
   return {
     type: ADAPTER_TYPE,
     models: [],
+    supportsLocalAgentJwt: true,
 
     async getConfigSchema(): Promise<AdapterConfigSchema> {
+      const modelOptions: Array<{ label: string; value: string }> = [];
+      const baseUrl = process.env.LITELLM_API_BASE ?? "";
+      const apiKey = process.env.LITELLM_API_KEY ?? "";
+      if (baseUrl && apiKey) {
+        try {
+          const { LiteLLMClient } = await import("./client.js");
+          const models = await new LiteLLMClient({ baseUrl, apiKey }).discover();
+          for (const model of models) {
+            if (model.id) modelOptions.push({ label: model.id, value: model.id });
+          }
+        } catch {
+          // Discovery failed — leave options empty; the field still accepts a typed value.
+        }
+      }
       return {
         fields: [
           {
             key: "gatewayBaseUrl",
             label: "LiteLLM gateway URL",
             type: "text",
-            required: true,
-            hint: "e.g. http://192.168.2.47:14000 (HTTPS for non-loopback)",
+            default: process.env.LITELLM_API_BASE ?? "",
+            hint: "Prefills from LITELLM_API_BASE. e.g. http://192.168.2.47:14000 (HTTPS for non-loopback).",
           },
           {
             key: "apiKey",
             label: "LiteLLM API key",
             type: "text",
-            required: true,
+            meta: { password: true },
+            hint: "Prefills from LITELLM_API_KEY when left blank.",
           },
           {
             key: "model",
             label: "Model",
-            type: "text",
-            required: true,
-            hint: "LiteLLM model id, e.g. deepseek-flash, deepseek-v4-pro",
+            type: "combobox",
+            options: modelOptions,
+            default: process.env.LITELLM_DEFAULT_MODEL ?? "",
+            hint: "Discovered from your gateway; type to use a different model.",
           },
           {
             key: "harness",
@@ -120,8 +137,6 @@ export function createServerAdapter(): ServerAdapterModule {
               { label: "Pi", value: "pi" },
             ],
           },
-          { key: "cwd", label: "Working directory", type: "text" },
-          { key: "timeoutSec", label: "Timeout (seconds)", type: "number", default: 600 },
         ],
       };
     },
@@ -131,9 +146,9 @@ export function createServerAdapter(): ServerAdapterModule {
     ): Promise<AdapterEnvironmentTestResult> {
       const checks: AdapterEnvironmentCheck[] = [];
       const config = parseObject(ctx.config);
-      const gatewayBaseUrl = asString(config.gatewayBaseUrl, "").trim();
-      const apiKey = asString(config.apiKey, "").trim();
-      const model = asString(config.model, "").trim();
+      const gatewayBaseUrl = asString(config.gatewayBaseUrl, "").trim() || (process.env.LITELLM_API_BASE ?? "").trim();
+      const apiKey = asString(config.apiKey, "").trim() || (process.env.LITELLM_API_KEY ?? "").trim();
+      const model = asString(config.model, "").trim() || (process.env.LITELLM_DEFAULT_MODEL ?? "").trim();
 
       if (!existsSync(SERVER_ENTRY)) {
         checks.push({
@@ -189,9 +204,9 @@ export function createServerAdapter(): ServerAdapterModule {
 
     async execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult> {
       const config = parseObject(ctx.config);
-      const gatewayBaseUrl = asString(config.gatewayBaseUrl, "").trim();
-      const apiKey = asString(config.apiKey, "").trim();
-      const model = asString(config.model, "").trim();
+      const gatewayBaseUrl = asString(config.gatewayBaseUrl, "").trim() || (process.env.LITELLM_API_BASE ?? "").trim();
+      const apiKey = asString(config.apiKey, "").trim() || (process.env.LITELLM_API_KEY ?? "").trim();
+      const model = asString(config.model, "").trim() || (process.env.LITELLM_DEFAULT_MODEL ?? "").trim();
       const harness = asString(config.harness, "claude").trim() || "claude";
       const cwd = asString(config.cwd, process.cwd());
       const timeoutSec = asNumber(config.timeoutSec, 600);
