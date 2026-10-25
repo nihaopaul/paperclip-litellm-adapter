@@ -260,6 +260,26 @@ export function createServerAdapter(): ServerAdapterModule {
         }),
       ].join("\n") + "\n";
 
+      // Opt in to signal-based cancellation before starting provider work. The
+      // host then aborts ctx.signal and waits for this execute() to settle
+      // (instead of immediately finalizing the run as cancelled), so the
+      // "interrupted" recovery evidence below is actually recorded.
+      await ctx.onCancellationReady?.();
+
+      // Stop the child gracefully when the host cancels, so the SDK turn
+      // settles instead of dying mid-generation.
+      let processGroupId: number | null = null;
+      const onAbort = () => {
+        if (processGroupId !== null) {
+          try {
+            process.kill(-processGroupId, "SIGTERM");
+          } catch {
+            // The process group is already gone.
+          }
+        }
+      };
+      ctx.signal?.addEventListener("abort", onAbort, { once: true });
+
       let proc;
       try {
         proc = await runChildProcess(
@@ -280,7 +300,10 @@ export function createServerAdapter(): ServerAdapterModule {
             timeoutSec,
             graceSec,
             onLog: ctx.onLog,
-            onSpawn: ctx.onSpawn,
+            onSpawn: async (meta) => {
+              processGroupId = meta.processGroupId;
+              await ctx.onSpawn?.(meta);
+            },
             stdin,
           },
         );
