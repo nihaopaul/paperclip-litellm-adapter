@@ -115,7 +115,8 @@ export function createServerAdapter(): ServerAdapterModule {
             label: "LiteLLM API key",
             type: "text",
             meta: { password: true },
-            hint: "Prefills from LITELLM_API_KEY when left blank.",
+            default: process.env.LITELLM_API_KEY ?? "",
+            hint: "Prefills from LITELLM_API_KEY; config wins over env.",
           },
           {
             key: "model",
@@ -135,6 +136,19 @@ export function createServerAdapter(): ServerAdapterModule {
               { label: "Claude (Claude Code)", value: "claude" },
               { label: "Codex", value: "codex" },
               { label: "Pi", value: "pi" },
+            ],
+          },
+          {
+            key: "permissionMode",
+            label: "Permission mode",
+            type: "select",
+            required: true,
+            default: "bypassPermissions",
+            hint: "The harness runs headless, so bypassPermissions gives it its shell, network, and file tools.",
+            options: [
+              { label: "Bypass permissions (full tools)", value: "bypassPermissions" },
+              { label: "Accept edits", value: "acceptEdits" },
+              { label: "Default (locked down)", value: "default" },
             ],
           },
         ],
@@ -208,6 +222,7 @@ export function createServerAdapter(): ServerAdapterModule {
       const apiKey = asString(config.apiKey, "").trim() || (process.env.LITELLM_API_KEY ?? "").trim();
       const model = asString(config.model, "").trim() || (process.env.LITELLM_DEFAULT_MODEL ?? "").trim();
       const harness = asString(config.harness, "claude").trim() || "claude";
+      const permissionMode = asString(config.permissionMode, "bypassPermissions").trim() || "bypassPermissions";
       const cwd = asString(config.cwd, process.cwd());
       const timeoutSec = asNumber(config.timeoutSec, 600);
       const graceSec = asNumber(config.graceSec, 15);
@@ -255,6 +270,7 @@ export function createServerAdapter(): ServerAdapterModule {
             "--input-format", "stream-json",
             "--output-format", "stream-json",
             "--agent", harness,
+            "--permission-mode", permissionMode,
             "--model", model,
             ...(cwd ? ["--cwd", cwd] : []),
           ],

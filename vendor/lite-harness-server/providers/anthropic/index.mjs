@@ -14,18 +14,29 @@ export const displayName = "Claude Code";
 // leave the SDK's own ANTHROPIC_* env in place (direct to the provider). The
 // Anthropic SDK appends "/v1/messages", so strip a trailing "/v1". A pre-set
 // ANTHROPIC_BASE_URL always wins (don't clobber an explicit override).
-function applyLiteLlmEnv(env) {
+function applyLiteLlmEnv(env, model) {
   if (!env.LITELLM_API_BASE || !env.LITELLM_API_KEY) return;
   if (!process.env.ANTHROPIC_BASE_URL) {
     process.env.ANTHROPIC_BASE_URL = env.LITELLM_API_BASE.replace(/\/+$/, "").replace(/\/v1$/, "");
   }
   process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || env.LITELLM_API_KEY;
   process.env.ANTHROPIC_AUTH_TOKEN = process.env.ANTHROPIC_AUTH_TOKEN || env.LITELLM_API_KEY;
+  // Pin every Claude Code model slot to the gateway-selected model. Claude Code
+  // otherwise resolves its small/fast slot and the haiku/sonnet/opus aliases to
+  // hard-coded Claude model ids (e.g. claude-haiku-4-5-...) that LiteLLM has no
+  // alias for, so those background calls fail with 403_MODEL_ACCESS_DENIED.
+  if (model) {
+    process.env.ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || model;
+    process.env.ANTHROPIC_SMALL_FAST_MODEL = process.env.ANTHROPIC_SMALL_FAST_MODEL || model;
+    process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL = process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL || model;
+    process.env.ANTHROPIC_DEFAULT_SONNET_MODEL = process.env.ANTHROPIC_DEFAULT_SONNET_MODEL || model;
+    process.env.ANTHROPIC_DEFAULT_OPUS_MODEL = process.env.ANTHROPIC_DEFAULT_OPUS_MODEL || model;
+  }
 }
 
 export function createRuntime({ model, permissionMode, cwd, env = process.env, diagnostics = () => {} }) {
-  applyLiteLlmEnv(env);
   let currentModel = model || env.LITELLM_DEFAULT_MODEL || "claude-sonnet-4-6";
+  applyLiteLlmEnv(env, currentModel);
   let mode = permissionMode || "default";
   let controller = null;
 

@@ -1,6 +1,6 @@
 {
   "name": "@nihaopaul/paperclip-litellm-adapter",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Lite-Harness SDK adapter for Paperclip: run Claude Code / Codex / Pi through a LiteLLM gateway with model discovery.",
   "type": "module",
   "main": "./dist/index.js",
